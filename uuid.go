@@ -93,7 +93,7 @@ func init() {
  * significant bit of the first octet of the node ID set to one.
  * This bit is the unicast/multicast bit, which will never 
  * be set in IEEE 802 addresses obtained from network cards.
- * (RFC 4122 par 4.5)
+ * (RFC 4122 par 4.5) 
  */
 func initNodeId() {
 	rand.Read(nodeId[:])
