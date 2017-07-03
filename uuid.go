@@ -69,8 +69,12 @@ import (
 
 */
 type UUID struct {
-	b	[16]byte
-	v	byte // Version
+	tl	[4]byte
+	tm	[2]byte
+	thv	[2]byte
+	csh	[1]byte
+	csl	[1]byte
+	n	[6]byte
 }
 
 var (
@@ -155,17 +159,17 @@ func (u *UUID) GenerateV1() *UUID {
 	 * (bits zero through 31) of the timestamp in the same order of
 	 * significance.
 	 */
-	u.b[0] = byte(uint32(ts) >> 24)
-	u.b[1] = byte(uint32(ts) >> 16)
-	u.b[2] = byte(uint32(ts) >> 8)
-	u.b[3] = byte(uint32(ts))
+	u.tl[0] = byte(uint32(ts) >> 24)
+	u.tl[1] = byte(uint32(ts) >> 16)
+	u.tl[2] = byte(uint32(ts) >> 8)
+	u.tl[3] = byte(uint32(ts))
 	/*
 	 * Set the time_mid field equal to bits 32 through 47 from the
 	 * timestamp in the same order of significance.
 	 */
 	t := uint16((ts >> 32) & 0xFFFF)
-	u.b[4] = byte(t >> 8)
-	u.b[5] = byte(t)
+	u.tm[0] = byte(t >> 8)
+	u.tm[1] = byte(t)
 	/*
 	 * Set the 12 least significant bits (bits zero through 11) of the
 	 * time_hi_and_version field equal to bits 48 through 59 from the
@@ -175,8 +179,8 @@ func (u *UUID) GenerateV1() *UUID {
 	 * corresponding to the UUID version being created
 	 */
 	t = uint16((ts >> 48) & 0x0FFF | 0x1000)
-	u.b[6] = byte(t >> 8)
-	u.b[7] = byte(t)
+	u.thv[0] = byte(t >> 8)
+	u.thv[1] = byte(t)
 	/*
 	 * Set the 6 least significant bits (bits zero through 5) of the
 	 * clock_seq_hi_and_reserved field to the 6 most significant bits
@@ -186,15 +190,14 @@ func (u *UUID) GenerateV1() *UUID {
 	 * clock_seq_hi_and_reserved to zero and one, respectively.
 	 */
 	cs := clockSeq & 0x3fff | 0x8000
-	u.b[8] = byte(cs >> 8)
-	u.b[9] = byte(cs)
+	u.csh[0] = byte(cs >> 8)
+	u.csl[0] = byte(cs)
 	/*
 	 * Set the node field to the 48-bit IEEE address in the same order of
 	 * significance as the address.
 	 */
-	copy(u.b[10:], nodeId[:])
+	copy(u.n[:], nodeId[:])
 
-	u.v = 1
 	return u
 }
 
@@ -206,26 +209,35 @@ func (u *UUID) GenerateV4() *UUID {
 	uuidMtx.Lock()
 
 	/*
-	 * Set the two most significant bits (bits 6 and 7) of the
-	 * clock_seq_hi_and_reserved to zero and one, respectively.
 	 * Set the four most significant bits (bits 12 through 15) of the
 	 * time_hi_and_version field to the 4-bit version number as
 	 * follows:
          *       Msb0  Msb1  Msb2  Msb3
          *        0     1     0     0
+	 * Set the two most significant bits (bits 6 and 7) of the
+	 * clock_seq_hi_and_reserved to zero and one, respectively.
 	 * Set all the other bits to randomly (or pseudo-randomly) 
 	 * chosen values.
 	 */
-	rand.Read(u.b[:])
+	rand.Read(u.tl[:])
+	rand.Read(u.tm[:])
+	rand.Read(u.thv[:])
+	rand.Read(u.csh[:])
+	rand.Read(u.csl[:])
+	rand.Read(u.n[:])
 
-	u.b[8] &= 0x3f
-	u.b[8] |= 0x80
+	u.thv[0] &= 0x0f
+	u.thv[0] |= 0x40
 
-	u.b[6] &= 0x0f
-	u.b[6] |= 0x40
+	u.csh[0] &= 0x3f
+	u.csh[0] |= 0x80
 
-	u.v = 4
+	return u
+}
 
+func GenerateV4() UUID {
+	var u UUID
+	u.GenerateV4()
 	return u
 }
 
@@ -234,17 +246,39 @@ func (u *UUID) GenerateV4() *UUID {
  */
 func (u UUID) String() string {
 	s := fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-			u.b[0], u.b[1], u.b[2], u.b[3], u.b[4],
-			u.b[5], u.b[6], u.b[7], u.b[8], u.b[9],
-			u.b[10], u.b[11], u.b[12], u.b[13], u.b[14], u.b[15]);
+			u.tl[0], u.tl[1], u.tl[2], u.tl[3],
+			u.tm[0], u.tm[1],
+			u.thv[0], u.thv[1],
+			u.csh[0], u.csl[0],
+			u.n[0], u.n[1], u.n[2], u.n[3], u.n[4], u.n[5]);
 	return s
 }
 
+/*
+ * Return the uuid version
+ */
 func (u UUID) Version() byte {
-	return u.v
+	return u.thv[0] >> 4
 }
 
+/*
+ * Parse a uuid from a string
+ */
 func (u *UUID) Parse(s string) bool {
-	return true
+	_, err := fmt.Sscanf(s, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+			&u.tl[0], &u.tl[1], &u.tl[2], &u.tl[3],
+			&u.tm[0], &u.tm[1],
+			&u.thv[0], &u.thv[1],
+			&u.csh[0], &u.csl[0],
+			&u.n[0], &u.n[1], &u.n[2], &u.n[3], &u.n[4], &u.n[5]);
+	return err != nil
 }
 
+/*
+ * Parse a UUID from a string, return the parsed UUID
+ */
+func Parse(s string) (UUID, bool) {
+	var u UUID
+	err := u.Parse(s)
+	return u, err
+}
