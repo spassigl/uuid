@@ -75,7 +75,7 @@ type UUID struct {
 }
 
 var (
-	uuidMtx		sync.Mutex
+	tsMtx		sync.Mutex
 	lastTime	int64
 	clockSeq	uint16
 	nodeId		[6]byte
@@ -120,6 +120,11 @@ func initClockSeq() {
  * 15 October 1582
  */
 func getTimestampV1() int64 {
+	// One timestamp at a time
+	defer tsMtx.Unlock()
+	tsMtx.Lock()
+
+
 	/* Offset in 100s of ns between the Epoch and
          * the required inital date */
 	const OFFSETNS = int64(122192928000000000)
@@ -139,9 +144,6 @@ func getTimestampV1() int64 {
  * Version 1 generator
  */
 func (u *UUID) GenerateV1() {
-	defer uuidMtx.Unlock()
-	uuidMtx.Lock()
-
 	ts := getTimestampV1()
 
 	/* 
@@ -200,9 +202,6 @@ func GenerateV1() UUID {
  * Version 3 generator
  */
 func (u *UUID) GenerateV3(ns Namespace, name string) {
-	defer uuidMtx.Unlock()
-	uuidMtx.Lock()
-
 	if len(ns.u[:]) != 16 || len(name) == 0 {
 		return
 	}
@@ -244,9 +243,6 @@ func GenerateV3(ns Namespace, name string) UUID {
  * Version 5 generator
  */
 func (u *UUID) GenerateV5(ns Namespace, name string) {
-	defer uuidMtx.Unlock()
-	uuidMtx.Lock()
-
 	if len(ns.u[:]) != 16 || len(name) == 0 {
 		return
 	}
@@ -288,9 +284,6 @@ func GenerateV5(ns Namespace, name string) UUID {
  * Version 4 generator
  */
 func (u *UUID) GenerateV4() {
-	defer uuidMtx.Unlock()
-	uuidMtx.Lock()
-
 	/*
 	 * Set the four most significant bits (bits 12 through 15) of the
 	 * time_hi_and_version field to the 4-bit version number as
