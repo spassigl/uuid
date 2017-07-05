@@ -26,6 +26,10 @@ import (
 	"time"
 )
 
+func TestNil(t *testing.T) {
+	t.Logf("Nil UUID: %s\n", NilUUID)
+}
+
 func TestV1(t *testing.T) {
 	var uv1 UUID
 	uv1.GenerateV1()
@@ -118,8 +122,13 @@ func TestV4Parse(t *testing.T) {
 	}
 }
 
-// Generate UUID v1 for 1 minute and search for duplicates
+// Generate as many UUID v1 as possible for 1 minute 
+// and search for duplicates
 func TestV1Collisions(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	done :=  make(chan struct{})
 	defer close(done)
 
@@ -147,6 +156,7 @@ func TestV1Collisions(t *testing.T) {
 		select {
 		case <- terminator.C:
 			terminator.Stop()
+			done <- struct{}{}
 			t.Logf("Analyzed %d UUIDs with no collision\n", cnt)
 			return
 		default:
