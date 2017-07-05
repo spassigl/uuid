@@ -74,7 +74,6 @@ type UUID struct {
 	u	[16]byte
 }
 
-
 var (
 	uuidMtx		sync.Mutex
 	lastTime	int64
@@ -82,6 +81,8 @@ var (
 	nodeId		[6]byte
 )
 
+/* Nil UUID has all bits set to zero */
+var NilUUID UUID
 
 func init() {
 	initNodeId()
@@ -137,7 +138,7 @@ func getTimestampV1() int64 {
 /*
  * Version 1 generator
  */
-func (u *UUID) GenerateV1() *UUID {
+func (u *UUID) GenerateV1() {
 	defer uuidMtx.Unlock()
 	uuidMtx.Lock()
 
@@ -186,8 +187,6 @@ func (u *UUID) GenerateV1() *UUID {
 	 * significance as the address.
 	 */
 	copy(u.u[10:], nodeId[:])
-
-	return u
 }
 
 func GenerateV1() UUID {
@@ -200,12 +199,12 @@ func GenerateV1() UUID {
 /*
  * Version 3 generator
  */
-func (u *UUID) GenerateV3(ns Namespace, name string) *UUID {
+func (u *UUID) GenerateV3(ns Namespace, name string) {
 	defer uuidMtx.Unlock()
 	uuidMtx.Lock()
 
 	if len(ns.u[:]) != 16 || len(name) == 0 {
-		return u
+		return
 	}
 
 	/*
@@ -233,8 +232,6 @@ func (u *UUID) GenerateV3(ns Namespace, name string) *UUID {
 
 	u.u[8] &= 0x3f
 	u.u[8] |= 0x80
-
-	return u
 }
 
 func GenerateV3(ns Namespace, name string) UUID {
@@ -246,12 +243,12 @@ func GenerateV3(ns Namespace, name string) UUID {
 /*
  * Version 5 generator
  */
-func (u *UUID) GenerateV5(ns Namespace, name string) *UUID {
+func (u *UUID) GenerateV5(ns Namespace, name string) {
 	defer uuidMtx.Unlock()
 	uuidMtx.Lock()
 
 	if len(ns.u[:]) != 16 || len(name) == 0 {
-		return u
+		return
 	}
 
 	/*
@@ -279,8 +276,6 @@ func (u *UUID) GenerateV5(ns Namespace, name string) *UUID {
 
 	u.u[8] &= 0x3f
 	u.u[8] |= 0x80
-
-	return u
 }
 
 func GenerateV5(ns Namespace, name string) UUID {
@@ -292,7 +287,7 @@ func GenerateV5(ns Namespace, name string) UUID {
 /*
  * Version 4 generator
  */
-func (u *UUID) GenerateV4() *UUID {
+func (u *UUID) GenerateV4() {
 	defer uuidMtx.Unlock()
 	uuidMtx.Lock()
 
@@ -314,8 +309,6 @@ func (u *UUID) GenerateV4() *UUID {
 
 	u.u[8] &= 0x3f
 	u.u[8] |= 0x80
-
-	return u
 }
 
 func GenerateV4() UUID {
